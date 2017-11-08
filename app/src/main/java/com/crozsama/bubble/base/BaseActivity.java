@@ -1,7 +1,9 @@
 package com.crozsama.bubble.base;
 
 import android.os.Bundle;
+import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
+import android.view.View;
 
 import com.crozsama.bubble.AppManager;
 
@@ -9,7 +11,7 @@ import com.crozsama.bubble.AppManager;
  * Created by 93201 on 2017/11/7.
  */
 
-public class BaseActivity extends AppCompatActivity {
+public abstract class BaseActivity extends AppCompatActivity {
     public static final int ACTIVITY_RESUMED = 0;
     public static final int ACTIVITY_STOPPED = 1;
     public static final int ACTIVITY_PAUSED = 2;
@@ -56,5 +58,14 @@ public class BaseActivity extends AppCompatActivity {
         super.onDestroy();
         activityState = ACTIVITY_DESTROYED;
         AppManager.getAppManager().finishActivity(this);
+    }
+
+    protected String tag() {
+        return getLocalClassName();
+    }
+
+
+    protected void snackbar(View v, String str) {
+        Snackbar.make(v, str, Snackbar.LENGTH_SHORT).show();
     }
 }

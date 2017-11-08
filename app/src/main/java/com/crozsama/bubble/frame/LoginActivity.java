@@ -3,6 +3,7 @@ package com.crozsama.bubble.frame;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
@@ -28,11 +29,22 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.crozsama.bubble.R;
 import com.crozsama.bubble.base.BaseActivity;
+import com.crozsama.bubble.network.Api;
+import com.crozsama.bubble.network.ErrorCode;
+import com.crozsama.bubble.network.SignInResponse;
+import com.crozsama.bubble.utils.Crypto;
+import com.crozsama.bubble.utils.L;
+import com.crozsama.bubble.utils.SPUtils;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import static android.Manifest.permission.READ_CONTACTS;
 
@@ -50,9 +62,9 @@ public class LoginActivity extends BaseActivity implements LoaderCallbacks<Curso
      * A dummy authentication store containing known user names and passwords.
      * TODO: remove after connecting to a real authentication system.
      */
-    private static final String[] DUMMY_CREDENTIALS = new String[]{
-            "foo@example.com:hello", "bar@example.com:world"
-    };
+//    private static final String[] DUMMY_CREDENTIALS = new String[]{
+//            "foo@example.com:hello", "bar@example.com:world"
+//    };
     /**
      * Keep track of the login task to ensure we can cancel it if requested.
      */
@@ -162,7 +174,11 @@ public class LoginActivity extends BaseActivity implements LoaderCallbacks<Curso
         View focusView = null;
 
         // Check for a valid password, if the user entered one.
-        if (!TextUtils.isEmpty(password) && !isPasswordValid(password)) {
+        if (TextUtils.isEmpty(password)) {
+            mPasswordView.setError(getString(R.string.error_field_required));
+            focusView = mPasswordView;
+            cancel = true;
+        } else if (!isPasswordValid(password)) {
             mPasswordView.setError(getString(R.string.error_invalid_password));
             focusView = mPasswordView;
             cancel = true;
@@ -194,12 +210,12 @@ public class LoginActivity extends BaseActivity implements LoaderCallbacks<Curso
 
     private boolean isEmailValid(String email) {
         //TODO: Replace this with your own logic
-        return email.contains("@");
+        return email.length() > 0;
     }
 
     private boolean isPasswordValid(String password) {
         //TODO: Replace this with your own logic
-        return password.length() > 4;
+        return password.length() > 0;
     }
 
     /**
@@ -296,7 +312,7 @@ public class LoginActivity extends BaseActivity implements LoaderCallbacks<Curso
      * Represents an asynchronous login/registration task used to authenticate
      * the user.
      */
-    public class UserLoginTask extends AsyncTask<Void, Void, Boolean> {
+    public class UserLoginTask extends AsyncTask<Void, Void, SignInResponse> {
 
         private final String mEmail;
         private final String mPassword;
@@ -307,40 +323,31 @@ public class LoginActivity extends BaseActivity implements LoaderCallbacks<Curso
         }
 
         @Override
-        protected Boolean doInBackground(Void... params) {
-            // TODO: attempt authentication against a network service.
-
-            try {
-                // Simulate network access.
-                Thread.sleep(2000);
-            } catch (InterruptedException e) {
-                return false;
-            }
-
-            for (String credential : DUMMY_CREDENTIALS) {
-                String[] pieces = credential.split(":");
-                if (pieces[0].equals(mEmail)) {
-                    // Account exists, return true if the password matches.
-                    return pieces[1].equals(mPassword);
-                }
-            }
-
-            // TODO: register the new account here.
-            return true;
+        protected SignInResponse doInBackground(Void... params) {
+            return Api.signIn(getApplicationContext(), mEmail, mPassword);
         }
 
         @Override
-        protected void onPostExecute(final Boolean success) {
+        protected void onPostExecute(final SignInResponse response) {
             mAuthTask = null;
             showProgress(false);
-
-            if (success) {
-                finish();
-            } else {
+            if (response == null) {
+                snackbar(mLoginFormView, getString(R.string.network_error));
                 mPasswordView.setError(getString(R.string.error_incorrect_password));
                 mPasswordView.requestFocus();
+                return;
+            }
+            if (response.code == ErrorCode.CODE_OK) {
+                Intent intent = new Intent(getApplicationContext(), MainActivity.class);
+                intent.putExtra("token", response.data.token);
+                intent.putExtra("profile", response.data.profile);
+                startActivity(intent);
+                finish();
+            } else {
+                snackbar(mLoginFormView, ErrorCode.getErrorString(getApplicationContext(), response.code));
             }
         }
+
 
         @Override
         protected void onCancelled() {
