@@ -3,6 +3,7 @@ package com.crozsama.bubble.network;
 import android.content.Context;
 
 import com.crozsama.bubble.utils.Crypto;
+import com.crozsama.bubble.utils.LoginInfo;
 import com.crozsama.bubble.utils.SPUtils;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -18,7 +19,7 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 
 public class Api {
-    private static final String BASE_API_ADDR = "http://192.168.0.102:10086";
+    private static final String BASE_API_ADDR = "http://192.168.0.114:10086";
 
     private static final String SIGN_IN = "/api/signin";
     private static final String SIGN_UP = "/api/signup";
@@ -146,10 +147,13 @@ public class Api {
         return response.body().string();
     }
 
-    public static String post(String url, Map<String, String> requestForm) throws IOException {
+    public static String post(String url, Map<String, String>... requestForms) throws IOException {
         FormBody.Builder builder = new FormBody.Builder();
-        for (String key : requestForm.keySet()) {
-            builder = builder.add(key, requestForm.get(key));
+        if (requestForms.length > 0) {
+            Map<String, String> reqForm = requestForms[0];
+            for (String key : reqForm.keySet()) {
+                builder = builder.add(key, reqForm.get(key));
+            }
         }
         RequestBody body = builder.build();
         Request request = new Request.Builder().
@@ -177,27 +181,31 @@ public class Api {
         SignInResponse resp = gson.fromJson(responseStr, SignInResponse.class);
         if (resp.code == ErrorCode.CODE_OK) {
             token = resp.data.token;
-            SPUtils.put(ctx.getApplicationContext(), "token", resp.data.token);
-            SPUtils.put(ctx.getApplicationContext(), "profile", resp.data.profile.toString());
+            new LoginInfo(username, password, resp.data).save(ctx); //保存登录信息到本地
         }
         return resp;
     }
 
-    public static boolean verifyToken(String str) {
-        token = str;
-        String responseStr;
-        try {
-            responseStr = post(getUserTokenVerify(), new HashMap<String, String>());
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
-        }
-        Gson gson = new GsonBuilder().create();
-        BaseResponse resp = gson.fromJson(responseStr, BaseResponse.class);
-        return resp.code == ErrorCode.CODE_OK;
-    }
+//    public static boolean verifyToken(String str) {
+//        token = str;
+//        String responseStr;
+//        try {
+//            responseStr = post(getUserTokenVerify(), new HashMap<String, String>());
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//            return false;
+//        }
+//        Gson gson = new GsonBuilder().create();
+//        BaseResponse resp = gson.fromJson(responseStr, BaseResponse.class);
+//        return resp.code == ErrorCode.CODE_OK;
+//    }
 
     public static void setToken(String to) {
         token = to;
+    }
+
+    public enum Method {
+        GET,
+        POST
     }
 }

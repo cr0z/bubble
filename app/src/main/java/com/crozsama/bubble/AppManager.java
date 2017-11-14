@@ -7,10 +7,6 @@ import com.crozsama.bubble.base.BaseActivity;
 
 import java.util.Stack;
 
-/**
- * Created by 93201 on 2017/11/7.
- */
-
 public class AppManager {
     private static final Object lock = new Object();
     private static Stack<BaseActivity> activityStack;

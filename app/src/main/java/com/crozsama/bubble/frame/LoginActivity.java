@@ -35,11 +35,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.crozsama.bubble.AppManager;
 import com.crozsama.bubble.R;
 import com.crozsama.bubble.base.BaseActivity;
 import com.crozsama.bubble.network.Api;
 import com.crozsama.bubble.network.ErrorCode;
 import com.crozsama.bubble.network.SignInResponse;
+import com.crozsama.bubble.task.LoginTask;
+import com.crozsama.bubble.task.OnCancelledListener;
+import com.crozsama.bubble.task.OnPostExecutedListener;
 import com.crozsama.bubble.utils.Crypto;
 import com.crozsama.bubble.utils.L;
 import com.crozsama.bubble.utils.SPUtils;
@@ -68,7 +72,7 @@ public class LoginActivity extends BaseActivity implements LoaderCallbacks<Curso
     /**
      * Keep track of the login task to ensure we can cancel it if requested.
      */
-    private UserLoginTask mAuthTask = null;
+    private LoginTask mAuthTask = null;
 
     // UI references.
     private AutoCompleteTextView mEmailView;
@@ -203,7 +207,46 @@ public class LoginActivity extends BaseActivity implements LoaderCallbacks<Curso
             // Show a progress spinner, and kick off a background task to
             // perform the user login attempt.
             showProgress(true);
-            mAuthTask = new UserLoginTask(email, password);
+
+            mAuthTask = new LoginTask(getApplicationContext(), email, password);
+            mAuthTask.setOnPostExecuted(new OnPostExecutedListener<SignInResponse>() {
+                @Override
+                public void onPostExecuted(SignInResponse response) {
+                    mAuthTask = null;
+                    showProgress(false);
+                    if (response == null) {
+                        toast(getString(R.string.network_error));
+                        mPasswordView.requestFocus();
+                        return;
+                    }
+                    switch (response.code) {
+                        case ErrorCode.CODE_OK:
+                            Intent intent = new Intent(getApplicationContext(), MainActivity.class);
+                            intent.putExtra("profile", response.data.profile);
+                            startActivity(intent);
+                            finish();
+                            break;
+                        case ErrorCode.CODE_USERNAME_INVALID:
+                            mEmailView.setError(getString(R.string.error_invalid_email));
+                            mEmailView.requestFocus();
+                            break;
+                        case ErrorCode.CODE_PASSWORD_INVALID:
+                            mPasswordView.setError(getString(R.string.error_incorrect_password));
+                            mPasswordView.requestFocus();
+                            break;
+                        default:
+                            toast(ErrorCode.getErrorString(getApplicationContext(), response.code));
+                            break;
+                    }
+                }
+            });
+            mAuthTask.setOnCancelled(new OnCancelledListener() {
+                @Override
+                public void onCancelled() {
+                    mAuthTask = null;
+                    showProgress(false);
+                }
+            });
             mAuthTask.execute((Void) null);
         }
     }
@@ -312,48 +355,61 @@ public class LoginActivity extends BaseActivity implements LoaderCallbacks<Curso
      * Represents an asynchronous login/registration task used to authenticate
      * the user.
      */
-    public class UserLoginTask extends AsyncTask<Void, Void, SignInResponse> {
-
-        private final String mEmail;
-        private final String mPassword;
-
-        UserLoginTask(String email, String password) {
-            mEmail = email;
-            mPassword = password;
-        }
-
-        @Override
-        protected SignInResponse doInBackground(Void... params) {
-            return Api.signIn(getApplicationContext(), mEmail, mPassword);
-        }
-
-        @Override
-        protected void onPostExecute(final SignInResponse response) {
-            mAuthTask = null;
-            showProgress(false);
-            if (response == null) {
-                snackbar(mLoginFormView, getString(R.string.network_error));
-                mPasswordView.setError(getString(R.string.error_incorrect_password));
-                mPasswordView.requestFocus();
-                return;
-            }
-            if (response.code == ErrorCode.CODE_OK) {
-                Intent intent = new Intent(getApplicationContext(), MainActivity.class);
-                intent.putExtra("token", response.data.token);
-                intent.putExtra("profile", response.data.profile);
-                startActivity(intent);
-                finish();
-            } else {
-                snackbar(mLoginFormView, ErrorCode.getErrorString(getApplicationContext(), response.code));
-            }
-        }
-
-
-        @Override
-        protected void onCancelled() {
-            mAuthTask = null;
-            showProgress(false);
-        }
-    }
+//    public class UserLoginTask extends AsyncTask<Void, Void, SignInResponse> {
+//
+//        private final String mEmail;
+//        private final String mPassword;
+//
+//        UserLoginTask(String email, String password) {
+//            mEmail = email;
+//            mPassword = password;
+//        }
+//
+//        @Override
+//        protected SignInResponse doInBackground(Void... params) {
+//            return Api.signIn(getApplicationContext(), mEmail, mPassword);
+//        }
+//
+//        @Override
+//        protected void onPostExecute(final SignInResponse response) {
+//            mAuthTask = null;
+//            showProgress(false);
+//            if (response == null) {
+//                snackbar(mLoginFormView, getString(R.string.network_error));
+//                mPasswordView.requestFocus();
+//                return;
+//            }
+//
+//            switch (response.code) {
+//                case ErrorCode.CODE_OK:
+//                    String userinfo = Crypto.reverseConfusion(String.format("%s\n%s", mEmail, mPassword));
+//                    SPUtils.put(getApplicationContext(), "userinfo", userinfo);
+//
+//                    Intent intent = new Intent(getApplicationContext(), MainActivity.class);
+//                    intent.putExtra("profile", response.data.profile);
+//                    startActivity(intent);
+//                    finish();
+//                    break;
+//                case ErrorCode.CODE_USERNAME_INVALID:
+//                    mEmailView.setError(getString(R.string.error_invalid_email));
+//                    mEmailView.requestFocus();
+//                    break;
+//                case ErrorCode.CODE_PASSWORD_INVALID:
+//                    mPasswordView.setError(getString(R.string.error_incorrect_password));
+//                    mPasswordView.requestFocus();
+//                    break;
+//                default:
+//                    snackbar(mLoginFormView, ErrorCode.getErrorString(getApplicationContext(), response.code));
+//                    break;
+//            }
+//        }
+//
+//
+//        @Override
+//        protected void onCancelled() {
+//            mAuthTask = null;
+//            showProgress(false);
+//        }
+//    }
 }
 

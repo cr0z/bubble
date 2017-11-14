@@ -2,13 +2,12 @@ package com.crozsama.bubble.frame;
 
 import android.app.Fragment;
 import android.content.Context;
-import android.os.AsyncTask;
 import android.os.Bundle;
-import android.support.design.widget.Snackbar;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ListView;
+import android.widget.Toast;
 
 import com.crozsama.bubble.R;
 import com.crozsama.bubble.base.CommonAdapter;
@@ -16,10 +15,9 @@ import com.crozsama.bubble.base.ViewHolder;
 import com.crozsama.bubble.network.Api;
 import com.crozsama.bubble.network.DynamicResponse;
 import com.crozsama.bubble.network.ErrorCode;
-import com.crozsama.bubble.utils.L;
+import com.crozsama.bubble.task.HttpTask;
 import com.google.gson.GsonBuilder;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,7 +27,7 @@ public class DynamicFragment extends Fragment {
     private ListView dynamicListView;
     private CommonAdapter adapter;
     private List<DynamicResponse.Bubble> bubbles;
-    private static LoadTask loadTask;
+    private HttpTask loadTask;
 
 
     @Override
@@ -46,7 +44,6 @@ public class DynamicFragment extends Fragment {
         dynamicListView.setAdapter(adapter);
 
         load();
-        loadTask.execute();
         return view;
     }
 
@@ -55,47 +52,35 @@ public class DynamicFragment extends Fragment {
         if (loadTask != null) {
             return;
         }
-        loadTask = new LoadTask();
-
+//        loadTask = new DynamicTask();
+        loadTask = new HttpTask(Api.Method.GET, Api.getUserDynamicsUrl());
+        loadTask.setOnPostExecuted(new HttpTask.OnPostExecutedListener() {
+            @Override
+            public void onPostExecuted(String str) {
+                DynamicResponse response = new GsonBuilder().create().fromJson(str, DynamicResponse.class);
+                loadTask = null;
+                if (response == null) {
+                    Toast.makeText(getActivity(), getString(R.string.network_error), Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (response.code != ErrorCode.CODE_OK) {
+                    Toast.makeText(getActivity(), ErrorCode.getErrorString(getActivity(), response.code), Toast.LENGTH_LONG).show();
+                    return;
+                }
+                bubbles.addAll(response.data);
+                adapter.notifyDataSetChanged();
+            }
+        }).setOnCancelled(new HttpTask.OnCancelledListener() {
+            @Override
+            public void onCancelled() {
+                loadTask = null;
+            }
+        }).execute();
     }
 
-    class LoadTask extends AsyncTask<Void, Void, DynamicResponse> {
-        @Override
-        protected DynamicResponse doInBackground(Void... voids) {
-            String responseStr;
-            try {
-                responseStr = Api.get(Api.getUserDynamicsUrl());
-            } catch (IOException e) {
-                e.printStackTrace();
-                return null;
-            }
-            L.d("xxx", responseStr);
-            return new GsonBuilder().create().fromJson(responseStr, DynamicResponse.class);
-        }
-
-        @Override
-        protected void onPostExecute(DynamicResponse response) {
-            loadTask = null;
-            if (response == null) {
-                Snackbar.make(view, R.string.network_error, Snackbar.LENGTH_SHORT).show();
-                return;
-            }
-            if (response.code != ErrorCode.CODE_OK) {
-                Snackbar.make(view, ErrorCode.getErrorString(getContext(), response.code), Snackbar.LENGTH_LONG).show();
-                return;
-            }
-            bubbles.addAll(response.data);
-            adapter.notifyDataSetChanged();
-        }
-
-        @Override
-        protected void onCancelled() {
-            loadTask = null;
-        }
-    }
 
     class DynamicAdapter extends CommonAdapter<DynamicResponse.Bubble> {
-        public DynamicAdapter(Context context, List<DynamicResponse.Bubble> datas, int layoutId) {
+        private DynamicAdapter(Context context, List<DynamicResponse.Bubble> datas, int layoutId) {
             super(context, datas, layoutId);
         }
 

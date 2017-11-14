@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
+import android.widget.Toast;
 
 import com.crozsama.bubble.AppManager;
 
@@ -64,6 +65,10 @@ public abstract class BaseActivity extends AppCompatActivity {
         return getLocalClassName();
     }
 
+
+    protected void toast(String str) {
+        Toast.makeText(getApplicationContext(), str, Toast.LENGTH_SHORT).show();
+    }
 
     protected void snackbar(View v, String str) {
         Snackbar.make(v, str, Snackbar.LENGTH_SHORT).show();
