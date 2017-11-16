@@ -1,5 +1,6 @@
 package com.crozsama.bubble.base;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
@@ -7,10 +8,8 @@ import android.view.View;
 import android.widget.Toast;
 
 import com.crozsama.bubble.AppManager;
-
-/**
- * Created by 93201 on 2017/11/7.
- */
+import com.crozsama.bubble.R;
+import com.crozsama.bubble.frame.LoginActivity;
 
 public abstract class BaseActivity extends AppCompatActivity {
     public static final int ACTIVITY_RESUMED = 0;
@@ -70,7 +69,22 @@ public abstract class BaseActivity extends AppCompatActivity {
         Toast.makeText(getApplicationContext(), str, Toast.LENGTH_SHORT).show();
     }
 
+    protected void toast(int rid) {
+        Toast.makeText(getApplicationContext(), getText(rid), Toast.LENGTH_SHORT).show();
+    }
+
     protected void snackbar(View v, String str) {
         Snackbar.make(v, str, Snackbar.LENGTH_SHORT).show();
+    }
+
+    protected void snackbar(View v, int rid) {
+        Snackbar.make(v, getText(rid), Snackbar.LENGTH_SHORT).show();
+    }
+
+    protected void onTokenError() {
+        toast(R.string.token_invalid);
+        Intent intent = new Intent(getApplicationContext(), LoginActivity.class);
+        startActivity(intent);
+        finish();
     }
 }

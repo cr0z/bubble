@@ -47,4 +47,12 @@ public class LoginTask extends AsyncTask<Void, Void, SignInResponse> {
         this.onCancelled = listener;
         return this;
     }
+
+    public interface OnCancelledListener {
+        void onCancelled();
+    }
+
+    public interface OnPostExecutedListener {
+        void onPostExecuted(SignInResponse response);
+    }
 }

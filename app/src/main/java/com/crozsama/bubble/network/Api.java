@@ -147,6 +147,7 @@ public class Api {
         return response.body().string();
     }
 
+    @SafeVarargs
     public static String post(String url, Map<String, String>... requestForms) throws IOException {
         FormBody.Builder builder = new FormBody.Builder();
         if (requestForms.length > 0) {
@@ -168,7 +169,7 @@ public class Api {
     public static SignInResponse signIn(Context ctx, String username, String password) {
         Map<String, String> form = new HashMap<>();
         form.put("username", username);
-        form.put("password", Crypto.getMD5(password));
+        form.put("password", Crypto.getMD5String(password));
         String responseStr;
         try {
             responseStr = Api.post(Api.getSignInUrl(), form);

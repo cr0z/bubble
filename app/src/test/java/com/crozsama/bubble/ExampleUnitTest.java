@@ -2,7 +2,11 @@ package com.crozsama.bubble;
 
 import com.crozsama.bubble.utils.Crypto;
 
+import junit.framework.Assert;
+
 import org.junit.Test;
+
+import javax.crypto.SecretKey;
 
 import static org.junit.Assert.*;
 
@@ -18,11 +22,14 @@ public class ExampleUnitTest {
     }
 
     @Test
-    public void utilsTest() throws Exception {
-        String str = Crypto.reverseConfusion("croz\ncroz");
-        System.out.print(str);
-        str = Crypto.unreverseConfusion(str);
-        System.out.print(str);
-        assertEquals(str, "croz\ncroz");
+    public void aesECBTest() throws Exception {
+        String content = "xingchen";
+        byte[] keyBytes = Crypto.generateAESSecretKey();
+        SecretKey key = Crypto.restoreSecretKey(keyBytes);
+        byte[] res = Crypto.aesECBEncode(content.getBytes(), key);
+        System.out.println(Crypto.toHexString(keyBytes));
+        System.out.println(Crypto.toHexString(res));
+        System.out.println(Crypto.aesECBDecode(res, key));
+        Assert.assertEquals(Crypto.aesECBDecode(res, key), content);
     }
 }

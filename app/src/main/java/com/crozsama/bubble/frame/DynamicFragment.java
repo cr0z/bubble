@@ -54,28 +54,20 @@ public class DynamicFragment extends Fragment {
         }
 //        loadTask = new DynamicTask();
         loadTask = new HttpTask(Api.Method.GET, Api.getUserDynamicsUrl());
-        loadTask.setOnPostExecuted(new HttpTask.OnPostExecutedListener() {
-            @Override
-            public void onPostExecuted(String str) {
-                DynamicResponse response = new GsonBuilder().create().fromJson(str, DynamicResponse.class);
-                loadTask = null;
-                if (response == null) {
-                    Toast.makeText(getActivity(), getString(R.string.network_error), Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                if (response.code != ErrorCode.CODE_OK) {
-                    Toast.makeText(getActivity(), ErrorCode.getErrorString(getActivity(), response.code), Toast.LENGTH_LONG).show();
-                    return;
-                }
-                bubbles.addAll(response.data);
-                adapter.notifyDataSetChanged();
+        loadTask.setOnPostExecuted((str) -> {
+            DynamicResponse response = new GsonBuilder().create().fromJson(str, DynamicResponse.class);
+            loadTask = null;
+            if (response == null) {
+                Toast.makeText(getActivity(), getString(R.string.network_error), Toast.LENGTH_SHORT).show();
+                return;
             }
-        }).setOnCancelled(new HttpTask.OnCancelledListener() {
-            @Override
-            public void onCancelled() {
-                loadTask = null;
+            if (response.code != ErrorCode.CODE_OK) {
+                Toast.makeText(getActivity(), ErrorCode.getErrorString(getActivity(), response.code), Toast.LENGTH_LONG).show();
+                return;
             }
-        }).execute();
+            bubbles.addAll(response.data);
+            adapter.notifyDataSetChanged();
+        }).setOnCancelled(() -> loadTask = null).execute();
     }
 
 

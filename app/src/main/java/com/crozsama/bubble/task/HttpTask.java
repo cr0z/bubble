@@ -12,9 +12,15 @@ public class HttpTask extends AsyncTask<Void, Void, String> {
     private OnCancelledListener onCancelled;
     private Api.Method method;
     private String addr;
-    private Map<String, String>[] body;
+    private Map<String, String> body;
 
-    public HttpTask(Api.Method method, String addr, Map<String, String>... body) {
+    public HttpTask(Api.Method method, String addr) {
+        this.method = method;
+        this.addr = addr;
+        this.body = body;
+    }
+
+    public HttpTask(Api.Method method, String addr, Map<String, String> body) {
         this.method = method;
         this.addr = addr;
         this.body = body;
@@ -27,7 +33,11 @@ public class HttpTask extends AsyncTask<Void, Void, String> {
                 case GET:
                     return Api.get(this.addr);
                 case POST:
-                    return Api.post(this.addr, this.body);
+                    if (this.body == null) {
+                        return Api.post(this.addr);
+                    } else {
+                        return Api.post(this.addr, this.body);
+                    }
             }
         } catch (IOException e) {
             e.printStackTrace();

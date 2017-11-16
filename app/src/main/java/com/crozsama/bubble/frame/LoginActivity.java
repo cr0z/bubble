@@ -13,7 +13,6 @@ import android.content.CursorLoader;
 import android.content.Loader;
 import android.database.Cursor;
 import android.net.Uri;
-import android.os.AsyncTask;
 
 import android.os.Build;
 import android.os.Bundle;
@@ -29,26 +28,15 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-import com.crozsama.bubble.AppManager;
 import com.crozsama.bubble.R;
 import com.crozsama.bubble.base.BaseActivity;
-import com.crozsama.bubble.network.Api;
 import com.crozsama.bubble.network.ErrorCode;
 import com.crozsama.bubble.network.SignInResponse;
 import com.crozsama.bubble.task.LoginTask;
-import com.crozsama.bubble.task.OnCancelledListener;
-import com.crozsama.bubble.task.OnPostExecutedListener;
-import com.crozsama.bubble.utils.Crypto;
-import com.crozsama.bubble.utils.L;
-import com.crozsama.bubble.utils.SPUtils;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.crozsama.bubble.utils.LoginInfo;
 
 import static android.Manifest.permission.READ_CONTACTS;
 
@@ -89,34 +77,28 @@ public class LoginActivity extends BaseActivity implements LoaderCallbacks<Curso
         populateAutoComplete();
 
         mPasswordView = (EditText) findViewById(R.id.password);
-        mPasswordView.setOnEditorActionListener(new TextView.OnEditorActionListener() {
-            @Override
-            public boolean onEditorAction(TextView textView, int id, KeyEvent keyEvent) {
-                if (id == EditorInfo.IME_ACTION_DONE || id == EditorInfo.IME_NULL) {
-                    attemptLogin();
-                    return true;
-                }
-                return false;
+
+        mPasswordView.setOnEditorActionListener((textView, id, keyEvent) -> {
+            if (id == EditorInfo.IME_ACTION_DONE || id == EditorInfo.IME_NULL) {
+                attemptLogin();
+                return true;
             }
+            return false;
         });
 
         Button mEmailSignInButton = (Button) findViewById(R.id.email_sign_in_button);
-        mEmailSignInButton.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                attemptLogin();
-            }
-        });
+        mEmailSignInButton.setOnClickListener((view) -> attemptLogin());
 
         mLoginFormView = findViewById(R.id.login_form);
         mProgressView = findViewById(R.id.login_progress);
+
+        mEmailView.setText(LoginInfo.getStoredUsername(getApplicationContext()));
     }
 
     private void populateAutoComplete() {
         if (!mayRequestContacts()) {
             return;
         }
-
         getLoaderManager().initLoader(0, null, this);
     }
 
@@ -128,14 +110,12 @@ public class LoginActivity extends BaseActivity implements LoaderCallbacks<Curso
             return true;
         }
         if (shouldShowRequestPermissionRationale(READ_CONTACTS)) {
-            Snackbar.make(mEmailView, R.string.permission_rationale, Snackbar.LENGTH_INDEFINITE)
-                    .setAction(android.R.string.ok, new View.OnClickListener() {
-                        @Override
-                        @TargetApi(Build.VERSION_CODES.M)
-                        public void onClick(View v) {
-                            requestPermissions(new String[]{READ_CONTACTS}, REQUEST_READ_CONTACTS);
-                        }
-                    });
+            Snackbar.make(
+                    mEmailView,
+                    R.string.permission_rationale,
+                    Snackbar.LENGTH_INDEFINITE)
+                    .setAction(android.R.string.ok,
+                            (v) -> requestPermissions(new String[]{READ_CONTACTS}, REQUEST_READ_CONTACTS));
         } else {
             requestPermissions(new String[]{READ_CONTACTS}, REQUEST_READ_CONTACTS);
         }
@@ -209,43 +189,37 @@ public class LoginActivity extends BaseActivity implements LoaderCallbacks<Curso
             showProgress(true);
 
             mAuthTask = new LoginTask(getApplicationContext(), email, password);
-            mAuthTask.setOnPostExecuted(new OnPostExecutedListener<SignInResponse>() {
-                @Override
-                public void onPostExecuted(SignInResponse response) {
-                    mAuthTask = null;
-                    showProgress(false);
-                    if (response == null) {
-                        toast(getString(R.string.network_error));
+            mAuthTask.setOnPostExecuted((response) -> {
+                mAuthTask = null;
+                showProgress(false);
+                if (response == null) {
+                    toast(getString(R.string.network_error));
+                    mPasswordView.requestFocus();
+                    return;
+                }
+                switch (response.code) {
+                    case ErrorCode.CODE_OK:
+                        Intent intent = new Intent(getApplicationContext(), MainActivity.class);
+                        intent.putExtra("profile", response.data.profile);
+                        startActivity(intent);
+                        finish();
+                        break;
+                    case ErrorCode.CODE_USERNAME_INVALID:
+                        mEmailView.setError(getString(R.string.error_invalid_email));
+                        mEmailView.requestFocus();
+                        break;
+                    case ErrorCode.CODE_PASSWORD_INVALID:
+                        mPasswordView.setError(getString(R.string.error_incorrect_password));
                         mPasswordView.requestFocus();
-                        return;
-                    }
-                    switch (response.code) {
-                        case ErrorCode.CODE_OK:
-                            Intent intent = new Intent(getApplicationContext(), MainActivity.class);
-                            intent.putExtra("profile", response.data.profile);
-                            startActivity(intent);
-                            finish();
-                            break;
-                        case ErrorCode.CODE_USERNAME_INVALID:
-                            mEmailView.setError(getString(R.string.error_invalid_email));
-                            mEmailView.requestFocus();
-                            break;
-                        case ErrorCode.CODE_PASSWORD_INVALID:
-                            mPasswordView.setError(getString(R.string.error_incorrect_password));
-                            mPasswordView.requestFocus();
-                            break;
-                        default:
-                            toast(ErrorCode.getErrorString(getApplicationContext(), response.code));
-                            break;
-                    }
+                        break;
+                    default:
+                        toast(ErrorCode.getErrorString(getApplicationContext(), response.code));
+                        break;
                 }
             });
-            mAuthTask.setOnCancelled(new OnCancelledListener() {
-                @Override
-                public void onCancelled() {
-                    mAuthTask = null;
-                    showProgress(false);
-                }
+            mAuthTask.setOnCancelled(() -> {
+                mAuthTask = null;
+                showProgress(false);
             });
             mAuthTask.execute((Void) null);
         }
@@ -350,66 +324,5 @@ public class LoginActivity extends BaseActivity implements LoaderCallbacks<Curso
         int ADDRESS = 0;
         int IS_PRIMARY = 1;
     }
-
-    /**
-     * Represents an asynchronous login/registration task used to authenticate
-     * the user.
-     */
-//    public class UserLoginTask extends AsyncTask<Void, Void, SignInResponse> {
-//
-//        private final String mEmail;
-//        private final String mPassword;
-//
-//        UserLoginTask(String email, String password) {
-//            mEmail = email;
-//            mPassword = password;
-//        }
-//
-//        @Override
-//        protected SignInResponse doInBackground(Void... params) {
-//            return Api.signIn(getApplicationContext(), mEmail, mPassword);
-//        }
-//
-//        @Override
-//        protected void onPostExecute(final SignInResponse response) {
-//            mAuthTask = null;
-//            showProgress(false);
-//            if (response == null) {
-//                snackbar(mLoginFormView, getString(R.string.network_error));
-//                mPasswordView.requestFocus();
-//                return;
-//            }
-//
-//            switch (response.code) {
-//                case ErrorCode.CODE_OK:
-//                    String userinfo = Crypto.reverseConfusion(String.format("%s\n%s", mEmail, mPassword));
-//                    SPUtils.put(getApplicationContext(), "userinfo", userinfo);
-//
-//                    Intent intent = new Intent(getApplicationContext(), MainActivity.class);
-//                    intent.putExtra("profile", response.data.profile);
-//                    startActivity(intent);
-//                    finish();
-//                    break;
-//                case ErrorCode.CODE_USERNAME_INVALID:
-//                    mEmailView.setError(getString(R.string.error_invalid_email));
-//                    mEmailView.requestFocus();
-//                    break;
-//                case ErrorCode.CODE_PASSWORD_INVALID:
-//                    mPasswordView.setError(getString(R.string.error_incorrect_password));
-//                    mPasswordView.requestFocus();
-//                    break;
-//                default:
-//                    snackbar(mLoginFormView, ErrorCode.getErrorString(getApplicationContext(), response.code));
-//                    break;
-//            }
-//        }
-//
-//
-//        @Override
-//        protected void onCancelled() {
-//            mAuthTask = null;
-//            showProgress(false);
-//        }
-//    }
 }
 
